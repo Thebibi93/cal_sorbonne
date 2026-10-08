@@ -16,29 +16,22 @@ const String caldavBase = '/caldav.php';
 const String defaultUsername = 'student.master';
 const String defaultPassword = 'guest';
 
-// Liste complète des masters/calendriers disponibles
 const List<Master> masters = [
-  // Master ANDROIDE
   Master(id: 'm1-androide', label: 'M1_ANDROIDE', path: 'ANDROIDE/M1_ANDROIDE'),
   Master(id: 'm2-androide', label: 'M2_ANDROIDE', path: 'ANDROIDE/M2_ANDROIDE'),
 
-  // Master BIM
   Master(id: 'm1-bim', label: 'M1_BIM', path: 'BIM/M1_BIM'),
   Master(id: 'm2-bim', label: 'M2_BIM', path: 'BIM/M2_BIM'),
 
-  // Master DAC
   Master(id: 'm1-dac', label: 'M1_DAC', path: 'DAC/M1_DAC'),
   Master(id: 'm2-dac', label: 'M2_DAC', path: 'DAC/M2_DAC'),
 
-  // Master IMA
   Master(id: 'm1-ima', label: 'M1_IMA', path: 'IMA/M1_IMA'),
   Master(id: 'm2-ima', label: 'M2_IMA', path: 'IMA/M2_IMA'),
 
-  // Master IQ
   Master(id: 'm1-iq', label: 'M1_IQ', path: 'IQ/M1_IQ'),
   Master(id: 'm2-iq', label: 'M2_IQ', path: 'IQ/M2_IQ'),
 
-  // Master RES
   Master(
     id: 'm1-res-digital',
     label: 'M1_DIGITAL',
@@ -55,21 +48,17 @@ const List<Master> masters = [
   Master(id: 'm2-res-dev', label: 'M2_RES-DEV', path: 'RES/M2_RES-INSTA'),
   Master(id: 'm2-res-sec', label: 'M2_RES-SEC', path: 'RES/M2_RES-ITESCIA'),
 
-  // Master SAR
   Master(id: 'm1-sar', label: 'M1_SAR', path: 'SAR/M1_SAR'),
   Master(id: 'm2-sar', label: 'M2_SAR', path: 'SAR/M2_SAR'),
 
-  // Master SESI
   Master(id: 'm1-sesi', label: 'M1_SESI', path: 'SESI/M1_SESI'),
   Master(id: 'm2-sesi', label: 'M2_SESI', path: 'SESI/M2_SESI'),
 
-  // Master SFPN
   Master(id: 'm1-cca', label: 'M1_CCA', path: 'SFPN/M1_SFPN'),
   Master(id: 'm1-ssi-alt', label: 'M1_SSI-ALT', path: 'SFPN/M1_SFPN-AFTI'),
   Master(id: 'm2-cca', label: 'M2_CCA', path: 'SFPN/M2_SFPN'),
   Master(id: 'm2-ssi-alt', label: 'M2_SSI-ALT', path: 'SFPN/M2_SFPN-AFTI'),
 
-  // Master STL
   Master(id: 'm1-stl', label: 'M1_STL', path: 'STL/M1_STL'),
   Master(id: 'm2-stl', label: 'M2_STL', path: 'STL/M2_STL'),
   Master(id: 'm2-stl-insta', label: 'M2_STL-INSTA', path: 'STL/M2_STL-INSTA'),
@@ -128,44 +117,7 @@ const Set<String> sessionTypes = {
 
 bool isSessionType(String? token) {
   if (token == null) return false;
-  return token
-      .split(RegExp(r'[\/\s\-]+'))
-      .where((t) => t.isNotEmpty)
-      .any((t) => sessionTypes.contains(t.toUpperCase()));
-}
-
-List<String> extractAllUes(String? summary) {
-  if (summary == null) return [];
-  String s = summary
-      .replaceFirst(RegExp(r'^ANNULE[-\s]*', caseSensitive: false), '')
-      .trim();
-
-  final ueRegex = RegExp(
-    r'\b(UM\d[0-9A-Z]+)(?:\s*[-\\]\s*|\s+)([A-Z0-9]+)?\b',
-    caseSensitive: false,
-  );
-
-  List<String> ues = [];
-  final matches = ueRegex.allMatches(s);
-
-  for (final match in matches) {
-    String code = match.group(1)!.toUpperCase();
-    String? name = match.group(2);
-
-    if (name != null && !isSessionType(name) && name.toUpperCase() != 'AND') {
-      ues.add('$code - ${name.toUpperCase()}');
-    } else {
-      ues.add(code);
-    }
-  }
-
-  return ues.toSet().toList();
-}
-
-/// Retourne l'UE principale du titre
-String? extractUe(String? summary) {
-  final list = extractAllUes(summary);
-  return list.isNotEmpty ? list.first : null;
+  return sessionTypes.contains(token.toUpperCase());
 }
 
 final RegExp alwaysShownPattern = RegExp(
@@ -175,4 +127,96 @@ final RegExp alwaysShownPattern = RegExp(
 
 bool isAlwaysShown(String? summary) {
   return alwaysShownPattern.hasMatch(summary ?? '');
+}
+
+List<String> mergeUes(List<String> rawUes) {
+  final Map<String, String> ueMap = {};
+
+  for (final ue in rawUes) {
+    final matchCode = RegExp(
+      r'^(UM\d[0-9A-Z]+)',
+      caseSensitive: false,
+    ).firstMatch(ue);
+    if (matchCode == null) continue;
+
+    final code = matchCode.group(1)!.toUpperCase();
+    final hasLabel = ue.contains(' - ');
+
+    if (!ueMap.containsKey(code)) {
+      ueMap[code] = ue;
+    } else {
+      if (hasLabel && !ueMap[code]!.contains(' - ')) {
+        ueMap[code] = ue;
+      }
+    }
+  }
+
+  return ueMap.values.toList()..sort();
+}
+
+List<String> extractAllUes(String? summary) {
+  if (summary == null) return [];
+  String s = summary
+      .replaceFirst(RegExp(r'^ANNULE[-\s]*', caseSensitive: false), '')
+      .trim();
+
+  final codeRegex = RegExp(r'\b(UM\d[0-9A-Z]+)\b', caseSensitive: false);
+  final matches = codeRegex.allMatches(s);
+
+  if (matches.isEmpty) return [];
+
+  final List<String> ues = [];
+  final tokens = s
+      .split(RegExp(r'[\s\-–—/\\_]+'))
+      .where((t) => t.isNotEmpty)
+      .toList();
+
+  for (final match in matches) {
+    final code = match.group(1)!.toUpperCase();
+    String? label;
+
+    int codeIdx = tokens.indexWhere((t) => t.toUpperCase() == code);
+    if (codeIdx != -1) {
+      for (int i = codeIdx + 1; i < tokens.length; i++) {
+        final t = tokens[i].toUpperCase();
+        if (!isSessionType(t) && t != 'AND' && !t.startsWith('UM')) {
+          label = t;
+          break;
+        }
+      }
+    }
+
+    if (label != null) {
+      ues.add('$code - $label');
+    } else {
+      ues.add(code);
+    }
+  }
+
+  return mergeUes(ues);
+}
+
+String? extractUe(String? summary) {
+  final list = extractAllUes(summary);
+  return list.isNotEmpty ? list.first : null;
+}
+
+bool shouldShowEvent(String? title, List<String> selectedUes) {
+  if (title == null || title.isEmpty) return true;
+  if (isAlwaysShown(title)) return true;
+
+  final eventUes = extractAllUes(title);
+
+  if (eventUes.isEmpty) return true;
+
+  for (final eventUe in eventUes) {
+    final eventBaseCode = eventUe.split(' - ').first;
+
+    for (final selected in selectedUes) {
+      final selectedBaseCode = selected.split(' - ').first;
+      if (eventBaseCode == selectedBaseCode) return true;
+    }
+  }
+
+  return false;
 }

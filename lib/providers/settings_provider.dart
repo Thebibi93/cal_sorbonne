@@ -60,12 +60,9 @@ class SettingsProvider extends ChangeNotifier {
 
   void updateAvailableUes(List<String> newUes) {
     _availableUes = newUes;
-    // Si aucune UE n'était sélectionnée ou qu'on vient de changer de master,
-    // on coche toutes les nouvelles UEs par défaut localement.
     if (_selectedUes.isEmpty) {
       _selectedUes = List.from(newUes);
     } else {
-      // Conserver uniquement les UEs sélectionnées qui existent dans la nouvelle liste
       _selectedUes = _selectedUes.where((ue) => newUes.contains(ue)).toList();
       if (_selectedUes.isEmpty) {
         _selectedUes = List.from(newUes);
